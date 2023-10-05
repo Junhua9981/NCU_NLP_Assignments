@@ -1,3 +1,4 @@
+import os
 
 def word_embedding_model(train_words, word_emb_dim, output_path, model_type):
     if model_type == "fast_text":
@@ -15,6 +16,7 @@ def word_embedding_model(train_words, word_emb_dim, output_path, model_type):
     return embedding_model
 
 def generate_word_embedding(train_words, word_emb_dim, output_path, model_type):
+    global vocab_size
     if os.path.isfile(output_path + 'word_embedding_model'):
         print("Load model")
         if model_type == "fast_text":
@@ -36,5 +38,33 @@ def generate_word_embedding(train_words, word_emb_dim, output_path, model_type):
     vocab = ['<PAD>'] + ['<UNK>'] + list(embedding_model.wv.key_to_index)
     vocab_size = len(vocab)
 
+
     return word_embedding, vocab
 
+def CoNLL_parser(file_path):
+    lines = []
+    with open(file_path) as f:
+        lines = f.readlines()
+    words = []
+    targets = []
+    word = []
+    target = []
+    if lines.count("\t") < 1: # test data
+        for line in lines:
+            if len(line) > 1:
+                words.append(line[:-1])
+    else:
+        for line in lines:
+            if len(line) > 1:
+                w, t = line[:-1].split("\t")
+                word.append(w)
+                target.append(t)
+            else:
+                words.append(word)
+                targets.append(target)
+                word = []
+                target = []
+    return words, targets
+
+train_words, _ = CoNLL_parser(f"data/datasets/train.txt") if os.path.exists(f"data/datasets/train.txt") else None
+word_embedding, vocab = generate_word_embedding(train_words, 128, "./word_dirs", "fast_text")

@@ -1,9 +1,10 @@
 import lightning.pytorch as pl
-from torch.utils.data import random_split, DataLoader
+from torch.utils.data import random_split, DataLoader, Dataset
 import yaml
 import os
 import torch
-from model.embedding_model.word_embeddings import generate_word_embedding, word_embedding_model
+
+from model.embedding_model.word_embeddings import vocab, word_embedding
 
 BATCH_SIZE = 64
 
@@ -37,10 +38,6 @@ def CoNLL_parser(file_path):
                 target = []
     return words, targets
 
-
-
-
-
 class CoNLLDataset(Dataset):
     def __init__(self, words, targets=None):
         self.words = words
@@ -64,18 +61,13 @@ def PadCollate(batch):
     else: #test
       x = torch.nn.utils.rnn.pad_sequence(batch, batch_first=True)
       return x
-    
 
-    
 class WNUTDataModule(pl.LightningDataModule):
     def prepare_data(self):
-        dataset_path = load_config("data/config.yaml").get("dataset") if self.dataset is None else "data/datasets/" 
-        train_words, _ = CoNLL_parser(f"{dataset_path}/train.txt") if os.path.exists(f"{dataset_path}/train.txt") else None
-        word_embedding_model(train_words, 128, "./word_dirs", "fast_text")
+        pass
         
     def setup(self, stage:str):
-        dataset_path = load_config("data/config.yaml").get("dataset") if self.dataset is None else "data/datasets/" 
-        word_embedding, vocab = generate_word_embedding([], 128, "./word_dirs", "fast_text")
+        dataset_path = "data/datasets/" 
         idx2word = vocab
         word2idx = { u: i for i, u in enumerate(vocab)}
 
@@ -89,14 +81,14 @@ class WNUTDataModule(pl.LightningDataModule):
             self.train_words_as_int = [[word2idx['<UNK>'] if word not in word2idx else word2idx[word] for word in sentence] for sentence in self.train_words]
             self.train_targets_as_int = [[tag2idx[tag] for tag in sentence] for sentence in self.train_targets]
         
-        if stage == "validate":
-            self.val_words, self.val_targets = CoNLL_parser(f"{dataset_path}/val.txt") if os.path.exists(f"{dataset_path}/val.txt") else None
-            self.eval_words_as_int = [[word2idx['<UNK>'] if word not in word2idx else word2idx[word] for word in sentence] for sentence in self.eval_words]
-            self.eval_targets_as_int = [[tag2idx[tag] for tag in sentence] for sentence in self.eval_targets]
+        # if stage == "validate":
+            self.val_words, self.val_targets = CoNLL_parser(f"{dataset_path}/dev.txt") if os.path.exists(f"{dataset_path}/dev.txt") else None
+            self.val_words_as_int = [[word2idx['<UNK>'] if word not in word2idx else word2idx[word] for word in sentence] for sentence in self.val_words]
+            self.val_targets_as_int = [[tag2idx[tag] for tag in sentence] for sentence in self.val_targets]
         
         # Assign Test split(s) for use in Dataloaders
         if stage == "test":
-            self.test_words, self.test_targets = CoNLL_parser(f"{dataset_path}/test.txt") if os.path.exists(f"{dataset_path}/test.txt") else None
+            self.test_words, self.test_targets = CoNLL_parser(f"{dataset_path}/test-submit.txt") if os.path.exists(f"{dataset_path}/test-submit.txt") else None
             self.test_words_as_int = [[word2idx['<UNK>'] if word not in word2idx else word2idx[word] for word in sentence] for sentence in self.test_words]
 
     def train_dataloader(self):
